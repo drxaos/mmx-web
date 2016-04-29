@@ -1,10 +1,15 @@
 package com.github.drxaos.mmxweb;
 
-import com.github.drxaos.mmxweb.javacpp.MultiplyDemo;
+import com.github.drxaos.mmxweb.javacpp.WebbyBridge;
 
 public class Main {
 
     public static void main(String[] args) {
-        System.out.println("multiply(123,100): " + MultiplyDemo.multiply(123, 100));
+        WebbyBridge.callback(new WebbyBridge.Callback(){
+            @Override
+            public void log() {
+                System.out.println("!!!!!!!");
+            }
+        });
     }
 }

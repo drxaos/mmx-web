@@ -1,27 +1,4 @@
-/*
-    Copyright (c) 2015, Andreas Fredriksson, Micha Mettke
-    All rights reserved.
 
-    Redistribution and use in source and binary forms, with or without
-    modification, are permitted provided that the following conditions are met:
-
-    1. Redistributions of source code must retain the above copyright notice, this
-       list of conditions and the following disclaimer.
-    2. Redistributions in binary form must reproduce the above copyright notice,
-       this list of conditions and the following disclaimer in the documentation
-       and/or other materials provided with the distribution.
-
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-    ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,7 +7,7 @@
 #define WBY_IMPLEMENTATION
 #define WBY_USE_FIXED_TYPES
 #define WBY_USE_ASSERT
-#include "../mm_web.h"
+#include "mm_web.h"
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -46,6 +23,12 @@ struct server_state {
     unsigned frame_counter;
     struct wby_con *conn[MAX_WSCONN];
     int conn_count;
+};
+
+
+class Callback {
+public:
+    virtual void log(const char* text) { }
 };
 
 static void
@@ -68,7 +51,7 @@ sleep_for(long ms)
 static void
 test_log(const char* text)
 {
-    printf("[debug] %s\n", text);
+    //callback_log(text);
 }
 
 static int
@@ -163,7 +146,7 @@ websocket_closed(struct wby_con *connection, void *userdata)
 }
 
 int
-main(void)
+start(const char* host, int port)
 {
     void *memory = NULL;
     wby_size needed_memory = 0;
@@ -173,8 +156,8 @@ main(void)
     struct wby_config config;
     memset(&config, 0, sizeof config);
     config.userdata = &state;
-    config.address = "127.0.0.1";
-    config.port = 8888;
+    config.address = host;
+    config.port = port;
     config.connection_max = 4;
     config.request_buffer_size = 2048;
     config.io_buffer_size = 8192;
@@ -200,17 +183,8 @@ main(void)
 
     memset(&state, 0, sizeof state);
     while (!state.quit) {
-        int i = 0;
         wby_update(&server);
-        /* Push some test data over websockets */
-        if (!(state.frame_counter & 0x7f)) {
-            for (i = 0; i < state.conn_count; ++i) {
-                wby_frame_begin(state.conn[i], WBY_WSOP_TEXT_FRAME);
-                wby_write(state.conn[i], "Hello world over websockets!\n", 29);
-                wby_frame_end(state.conn[i]);
-            }
-        }
-        sleep_for(30);
+        sleep_for(10);
         ++state.frame_counter;
     }
     wby_stop(&server);
@@ -221,3 +195,13 @@ main(void)
     return 0;
 }
 
+static void
+websocket_broadcast_text(const char* text)
+{
+//    int i = 0;
+//    for (i = 0; i < state.conn_count; ++i) {
+//        wby_frame_begin(state.conn[i], WBY_WSOP_TEXT_FRAME);
+//        wby_write(state.conn[i], text, strlen(text));
+//        wby_frame_end(state.conn[i]);
+//    }
+}
