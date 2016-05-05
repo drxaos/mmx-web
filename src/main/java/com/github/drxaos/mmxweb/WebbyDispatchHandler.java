@@ -3,5 +3,5 @@ package com.github.drxaos.mmxweb;
 import com.github.drxaos.mmxweb.javacpp.WebbyBridge;
 
 public interface WebbyDispatchHandler {
-    int handle(WebbyBridge.Request request);
+    void handle(WebbyBridge.Request request, WebbyBridge.Response response);
 }

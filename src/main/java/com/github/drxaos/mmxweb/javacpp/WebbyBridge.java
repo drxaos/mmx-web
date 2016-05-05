@@ -1,12 +1,14 @@
 package com.github.drxaos.mmxweb.javacpp;
 
 import com.github.drxaos.mmxweb.Webby;
+import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacpp.FunctionPointer;
 import org.bytedeco.javacpp.Loader;
 import org.bytedeco.javacpp.Pointer;
-import org.bytedeco.javacpp.annotation.Name;
-import org.bytedeco.javacpp.annotation.Platform;
-import org.bytedeco.javacpp.annotation.Virtual;
+import org.bytedeco.javacpp.annotation.*;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Platform(include = "mm_web_helper.h")
 public class WebbyBridge {
@@ -38,6 +40,7 @@ public class WebbyBridge {
     public static native void log(String text);
 
     public static class Bridge extends Pointer {
+
         static {
             Loader.load();
         }
@@ -57,7 +60,20 @@ public class WebbyBridge {
         public native void update();
 
         @Virtual
-        public native int dispatchCallback(Request request);
+        public native int dispatchCallback(Request request, Connection connection);
+    }
+
+    @Name("wby_con")
+    public static class Connection extends Pointer {
+        static {
+            Loader.load();
+        }
+
+        public Connection() {
+            allocate();
+        }
+
+        private native void allocate();
     }
 
     @Name("wby_request")
@@ -66,36 +82,163 @@ public class WebbyBridge {
             Loader.load();
         }
 
-        public Request() {
+        protected Connection con;
+
+        public Request(Connection con) {
+            allocate();
+            this.con = con;
+        }
+
+        private native void allocate();
+
+        @MemberGetter
+        @Name("method")
+        public native String getMethod();
+
+        @MemberGetter
+        @Name("uri")
+        public native String getUri();
+
+        @MemberGetter
+        @Name("http_version")
+        public native String getHttpVersion();
+
+        @MemberGetter
+        @Name("query_params")
+        public native String getQueryParams();
+
+        @MemberGetter
+        @Name("content_length")
+        public native int getContentLength();
+
+        @MemberGetter
+        @Name("header_count")
+        public native int getHeaderCount();
+
+        public Header getHeader(int index) {
+            return WebbyBridge.get_header(this, index);
+        }
+
+        public byte[] getBody() {
+            return getBody(getContentLength());
+        }
+
+        public byte[] getBody(int maxLength) {
+            BytePointer bytePointer = new BytePointer(maxLength);
+            wby_read(con, bytePointer, maxLength);
+            return bytePointer.getStringBytes();
+        }
+    }
+
+    public static native Header get_header(Request req, int index);
+
+    @Cast("wby_header*")
+    public static native Pointer create_headers(int size);
+
+    public static native void set_header(@Cast("wby_header*") Pointer headers, int index, String name, String value);
+
+    public static native void delete_headers(@Cast("wby_header*") Pointer headers, int size);
+
+    public static native int wby_read(Connection con, Pointer memory, int length);
+
+    @Name("wby_header")
+    public static class Header extends Pointer {
+        static {
+            Loader.load();
+        }
+
+        public Header() {
             allocate();
         }
 
         private native void allocate();
 
-        public native String method();
+        @MemberGetter
+        public native String name();
 
-        public native void method(String property);
+        @MemberSetter
+        public native void name(String name);
 
-        public native String uri();
+        @MemberGetter
+        public native String value();
 
-        public native void uri(String property);
+        @MemberSetter
+        public native void value(String value);
+    }
 
-        public native String http_version();
+    public static native int wby_response_begin(Connection con, int status_code, int content_length, @Cast("const wby_header*") Pointer headers, int header_count);
 
-        public native void http_version(String property);
+    public static native void wby_response_end(Connection con);
 
-        public native String query_params();
+    public static native int wby_write(Connection con, Pointer memory, int length);
 
-        public native void query_params(String property);
+    public static class Response {
+        protected Connection con;
 
-        public native int content_length();
+        public void init(Connection con) {
+            this.con = con;
+            this.sent = false;
+            this.ret = 0;
+            this.status = 200;
+            this.contentLength = -1;
+            this.headers.clear();
+            this.headers.put("Server", "wby");
+            this.headers.put("Content-Type", "text/plain");
+        }
 
-        public native void content_length(int property);
+        int ret;
+        int status;
+        int contentLength;
+        boolean sent = false;
+        private Map<String, String> headers = new HashMap<String, String>();
 
-        public native int header_count();
+        public int getRet() {
+            return ret;
+        }
 
-        public native void header_count(int property);
+        public void notFound() {
+            this.ret = 1;
+        }
 
-        // TODO headers
+        public void setStatus(int status) {
+            if (sent) {
+                throw new RuntimeException("Header already sent");
+            }
+            this.status = status;
+        }
+
+        public void setContentLength(int contentLength) {
+            if (sent) {
+                throw new RuntimeException("Header already sent");
+            }
+            this.contentLength = contentLength;
+        }
+
+        public void addHeader(String name, String value) {
+            if (sent) {
+                throw new RuntimeException("Header already sent");
+            }
+            headers.put(name, value);
+        }
+
+        public int beginResponse() {
+            Pointer h = create_headers(headers.size());
+            int count = 0;
+            for (Map.Entry<String, String> entry : headers.entrySet()) {
+                set_header(h, count++, entry.getKey(), entry.getValue());
+            }
+            int res = wby_response_begin(con, status, contentLength, h, count);
+            delete_headers(h, headers.size());
+            sent = true;
+            return res;
+        }
+
+        public void endResponse() {
+            wby_response_end(con);
+        }
+
+        public int write(byte[] data) {
+            return wby_write(con, new BytePointer(data), data.length);
+        }
     }
 }

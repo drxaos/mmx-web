@@ -5,6 +5,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Webby {
     private static final Log log = LogFactory.getLog(Webby.class);
@@ -14,23 +15,36 @@ public class Webby {
     private Thread loop;
 
     private AtomicBoolean quit = new AtomicBoolean(false);
+    private AtomicInteger autoUpdateInterval = new AtomicInteger(15);
 
-    private int connection_max = 8;
-    private int request_buffer_size = 2048;
-    private int io_buffer_size = 8096;
+    private int maxConnections = 8;
+    private int requestBufferSize = 2048;
+    private int ioBufferSize = 8096;
+
+    private int port = 4444;
+    private String host = "127.0.0.1";
+
 
     private WebbyDispatchHandler dispatchHandler;
 
-    public void setConnection_max(int connection_max) {
-        this.connection_max = connection_max;
+    public void setMaxConnections(int maxConnections) {
+        this.maxConnections = maxConnections;
     }
 
-    public void setRequest_buffer_size(int request_buffer_size) {
-        this.request_buffer_size = request_buffer_size;
+    public void setRequestBufferSize(int requestBufferSize) {
+        this.requestBufferSize = requestBufferSize;
     }
 
-    public void setIo_buffer_size(int io_buffer_size) {
-        this.io_buffer_size = io_buffer_size;
+    public void setIoBufferSize(int ioBufferSize) {
+        this.ioBufferSize = ioBufferSize;
+    }
+
+    public void setPort(int port) {
+        this.port = port;
+    }
+
+    public void setHost(String host) {
+        this.host = host;
     }
 
     public void setDispatchHandler(WebbyDispatchHandler dispatchHandler) {
@@ -41,34 +55,61 @@ public class Webby {
         log.debug(text);
     }
 
-    public void start(String host, int port) {
+    public void start() {
         bridge = new WebbyBridge.Bridge() {
+            WebbyBridge.Response response = new WebbyBridge.Response();
+
             @Override
-            public int dispatchCallback(WebbyBridge.Request request) {
+            public int dispatchCallback(WebbyBridge.Request request, WebbyBridge.Connection connection) {
                 if (dispatchHandler != null) {
-                    return dispatchHandler.handle(request);
+                    response.init(connection);
+                    try {
+                        dispatchHandler.handle(request, response);
+                    } catch (Throwable t) {
+                        log.error("dispatcher error", t);
+                        response.setStatus(500);
+                        response.beginResponse();
+                        response.write(("Server error").getBytes());
+                        response.endResponse();
+                    }
+                    return response.getRet();
                 }
-                return super.dispatchCallback(request);
+                return super.dispatchCallback(request, connection);
             }
         };
         log.debug("Webby configure");
-        bridge.configure(host, port, connection_max, request_buffer_size, io_buffer_size);
+        bridge.configure(host, port, maxConnections, requestBufferSize, ioBufferSize);
         log.debug("Webby start");
         bridge.start();
+        log.debug("Webby started");
+    }
 
-        loop = new Thread("Webby (" + host + ":" + port + ")") {
-            @Override
-            public void run() {
-                log.debug("Webby loop start");
-                while (!quit.get()) {
-                    bridge.update();
-                    WebbyBridge.sleep_for(10);
+    public void update() {
+        bridge.update();
+    }
+
+    public void startAutoUpdate(final int intervalMs) {
+        quit.set(false);
+        autoUpdateInterval.set(intervalMs);
+        if (loop == null || !loop.isAlive()) {
+            loop = new Thread("Webby (" + host + ":" + port + ")") {
+                @Override
+                public void run() {
+                    log.debug("Webby loop start");
+                    while (!quit.get()) {
+                        bridge.update();
+                        WebbyBridge.sleep_for(autoUpdateInterval.get());
+                    }
+                    log.debug("Webby loop stop");
                 }
-                log.debug("Webby loop stop");
-            }
-        };
-        loop.setDaemon(true);
-        loop.start();
+            };
+            loop.setDaemon(true);
+            loop.start();
+        }
+    }
+
+    public void stopAutoUpdate() {
+        quit.set(true);
     }
 
     public void stop() {

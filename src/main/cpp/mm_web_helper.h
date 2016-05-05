@@ -185,7 +185,7 @@ public:
         wby_update(&server);
     }
 
-    virtual int dispatchCallback(struct wby_request *request) {
+    virtual int dispatchCallback(struct wby_request *request, struct wby_con *con) {
         return 1;
     }
 };
@@ -193,24 +193,36 @@ public:
 int dispatch(struct wby_con *connection, void *userdata)
 {
     struct Bridge *bridge = (Bridge*)userdata;
-    return bridge->dispatchCallback(&connection->request);
-//
-//    if (!strcmp("/foo", connection->request.uri)) {
-//        wby_response_begin(connection, 200, 14, NULL, 0);
-//        wby_write(connection, "Hello, world!\n", 14);
-//        wby_response_end(connection);
-//        return 0;
-//    } else if (!strcmp("/bar", connection->request.uri)) {
-//        wby_response_begin(connection, 200, -1, NULL, 0);
-//        wby_write(connection, "Hello, world!\n", 14);
-//        wby_write(connection, "Hello, world?\n", 14);
-//        wby_response_end(connection);
-//        return 0;
-//    } else if (!strcmp("/quit", connection->request.uri)) {
-//        wby_response_begin(connection, 200, -1, NULL, 0);
-//        wby_write(connection, "Goodbye, cruel world\n", 22);
-//        wby_response_end(connection);
-//        //state->quit = 1;
-//        return 0;
-//    } else return 1;
+    return bridge->dispatchCallback(&connection->request, connection);
 }
+
+int get_max_headers(){
+    return WBY_MAX_HEADERS;
+}
+
+wby_header* get_header(wby_request* req, int index) {
+    return &req->headers[index];
+}
+
+
+wby_header* create_headers(int size) {
+    return new wby_header[size];
+}
+
+void delete_headers(wby_header* h, int size) {
+    for(int i = 0; i < size; i++){
+        free((void*)h[i].name);
+        free((void*)h[i].value);
+    }
+    return delete[] h;
+}
+
+void set_header(wby_header* header, int index, const char* name, const char* value) {
+    const char* k = (const char*)malloc(strlen(name));
+    strcpy((char*)k, (const char*)name);
+    const char* v = (const char*)malloc(strlen(value));
+    strcpy((char*)v, (const char*)value);
+    header[index].name = k;
+    header[index].value = v;
+}
+

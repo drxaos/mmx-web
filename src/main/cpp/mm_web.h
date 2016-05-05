@@ -1475,7 +1475,6 @@ wby_response_begin(struct wby_con *conn_pub, int status_code, int content_length
     if (content_length >= 0)
         wby_printf(conn_pub, "Content-Length: %d\r\n", content_length);
     else wby_printf(conn_pub, "Transfer-Encoding: chunked\r\n");
-    wby_printf(conn_pub, "Server: wby\r\n");
 
     for (i = 0; i < header_count; ++i) {
         if (!strcasecmp(headers[i].name, "Connection")) {
