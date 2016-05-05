@@ -22,8 +22,12 @@ extern "C" {
     JNIEXPORT void logCallback(const char*);
 }
 
-static void
-sleep_for(long ms)
+void log(const char* text) {
+    logCallback(text);
+}
+
+
+static void sleep_for(long ms)
 {
 #if defined(__APPLE__)
     usleep(ms * 1000);
@@ -37,10 +41,6 @@ sleep_for(long ms)
     req.tv_nsec = t * 1000000L;
     while(-1 == nanosleep(&req, &req));
 #endif
-}
-
-void log(const char* text) {
-    logCallback(text);
 }
 
 
@@ -135,24 +135,18 @@ private:
     struct wby_con *conn[MAX_WSCONN];
     int conn_count;
 public:
-    Bridge() {
-    }
+    Bridge() {}
+    ~Bridge() {}
 
-    ~Bridge() {
-        if(config.address){
-            free((void*)config.address);
-        }
-    }
-
-    void configure(const char* host, int port) {
+    void configure(const char* host, int port, int connection_max, int request_buffer_size, int io_buffer_size) {
         memset(&config, 0, sizeof config);
         config.userdata = this;
         config.address = (const char*)malloc(strlen(host));
         strcpy((char*)config.address, (const char*)host);
         config.port = port;
-        config.connection_max = 4;
-        config.request_buffer_size = 2048;
-        config.io_buffer_size = 8192;
+        config.connection_max = connection_max;
+        config.request_buffer_size = request_buffer_size;
+        config.io_buffer_size = io_buffer_size;
         config.log = log;
         config.dispatch = dispatch;
 //        config.ws_connect = websocket_connect;
@@ -166,7 +160,7 @@ public:
             {WORD wsa_version = MAKEWORD(2,2);
             WSADATA wsa_data;
             if (WSAStartup(wsa_version, &wsa_data)) {
-                fprintf(stderr, "WSAStartup failed\n");
+                log("WSAStartup failed");
                 return 1;
             }}
         #endif
@@ -182,27 +176,24 @@ public:
         #if defined(_WIN32)
             WSACleanup();
         #endif
+        if(config.address) {
+            free((void*)config.address);
+        }
     }
 
     void update() {
         wby_update(&server);
     }
 
-    virtual int dispatchCallback(struct wby_con *connection) {
-        wby_response_begin(connection, 200, 14, NULL, 0);
-        wby_write(connection, "Hello, world!\n", 14);
-        wby_response_end(connection);
-        return 0;
+    virtual int dispatchCallback(struct wby_request *request) {
+        return 1;
     }
-
 };
-
-
 
 int dispatch(struct wby_con *connection, void *userdata)
 {
     struct Bridge *bridge = (Bridge*)userdata;
-    return bridge->dispatchCallback(connection);
+    return bridge->dispatchCallback(&connection->request);
 //
 //    if (!strcmp("/foo", connection->request.uri)) {
 //        wby_response_begin(connection, 200, 14, NULL, 0);
