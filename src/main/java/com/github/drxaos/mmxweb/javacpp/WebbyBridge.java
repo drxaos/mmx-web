@@ -61,6 +61,18 @@ public class WebbyBridge {
 
         @Virtual
         public native int dispatchCallback(Request request, Connection connection);
+
+        @Virtual
+        public native int wsConnectCallback(Request request, Connection connection);
+
+        @Virtual
+        public native void wsConnectedCallback(Request request, Connection connection);
+
+        @Virtual
+        public native void wsDisconnectedCallback(Request request, Connection connection);
+
+        @Virtual
+        public native int wsFrameCallback(Request request, Frame frame, Connection connection);
     }
 
     @Name("wby_con")
@@ -70,6 +82,19 @@ public class WebbyBridge {
         }
 
         public Connection() {
+            allocate();
+        }
+
+        private native void allocate();
+    }
+
+    @Name("wby_frame")
+    public static class Frame extends Pointer {
+        static {
+            Loader.load();
+        }
+
+        public Frame() {
             allocate();
         }
 
@@ -142,6 +167,9 @@ public class WebbyBridge {
 
         public String getParameter(String name) {
             String queryParams = getQueryParams();
+            if (queryParams == null || queryParams.isEmpty()) {
+                return null;
+            }
             BytePointer dst = new BytePointer(queryParams.length());
             try {
                 int size = wby_find_query_var(queryParams, name, dst, queryParams.length());
@@ -214,8 +242,8 @@ public class WebbyBridge {
             this.status = 200;
             this.contentLength = -1;
             this.headers.clear();
-            this.headers.put("Server", "wby");
-            this.headers.put("Content-Type", "text/plain");
+            this.headers.put("server", "wby");
+            this.headers.put("content-type", "text/plain");
         }
 
         int ret;
@@ -250,7 +278,7 @@ public class WebbyBridge {
             if (sent) {
                 throw new RuntimeException("Header already sent");
             }
-            headers.put(name, value);
+            headers.put(name.toLowerCase(), value);
         }
 
         public int beginResponse() {
@@ -273,6 +301,16 @@ public class WebbyBridge {
             BytePointer bp = new BytePointer(data);
             try {
                 return wby_write(con, bp, data.length);
+            } finally {
+                bp.deallocate();
+            }
+        }
+
+        public int write(byte[] data, int offset, int length) {
+            BytePointer bp = new BytePointer(data);
+            bp.position(offset);
+            try {
+                return wby_write(con, bp, length);
             } finally {
                 bp.deallocate();
             }

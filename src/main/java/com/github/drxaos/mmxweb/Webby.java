@@ -1,14 +1,14 @@
 package com.github.drxaos.mmxweb;
 
 import com.github.drxaos.mmxweb.javacpp.WebbyBridge;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Webby {
-    private static final Log log = LogFactory.getLog(Webby.class);
+    private static final Logger log = LoggerFactory.getLogger(Webby.class);
 
     private WebbyBridge.Bridge bridge;
 
@@ -76,6 +76,26 @@ public class Webby {
                     return response.getRet();
                 }
                 return super.dispatchCallback(request, connection);
+            }
+
+            @Override
+            public int wsConnectCallback(WebbyBridge.Request request, WebbyBridge.Connection connection) {
+                return super.wsConnectCallback(request, connection);
+            }
+
+            @Override
+            public void wsConnectedCallback(WebbyBridge.Request request, WebbyBridge.Connection connection) {
+                super.wsConnectedCallback(request, connection);
+            }
+
+            @Override
+            public void wsDisconnectedCallback(WebbyBridge.Request request, WebbyBridge.Connection connection) {
+                super.wsDisconnectedCallback(request, connection);
+            }
+
+            @Override
+            public int wsFrameCallback(WebbyBridge.Request request, WebbyBridge.Frame frame, WebbyBridge.Connection connection) {
+                return super.wsFrameCallback(request, frame, connection);
             }
         };
         log.debug("Webby configure");

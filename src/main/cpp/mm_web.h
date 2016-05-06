@@ -1920,6 +1920,7 @@ wby_update(struct wby_server *srv)
 
     /* Only accept incoming connections if we have space */
     if (srv->con_count < srv->config.connection_max) {
+wby_dbg(srv->config.log, "dbg1");
         FD_SET(srv->socket, &read_fds);
         FD_SET(srv->socket, &except_fds);
         max_socket = WBY_SOCK(srv->socket);
