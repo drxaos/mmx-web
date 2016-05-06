@@ -84,8 +84,11 @@ public class WebbyBridge {
 
         protected Connection con;
 
-        public Request(Connection con) {
+        public Request() {
             allocate();
+        }
+
+        public void setCon(Connection con) {
             this.con = con;
         }
 
@@ -116,7 +119,11 @@ public class WebbyBridge {
         public native int getHeaderCount();
 
         public Header getHeader(int index) {
-            return WebbyBridge.get_header(this, index);
+            return get_header(this, index);
+        }
+
+        public String getHeaderValue(String name) {
+            return wby_find_header(con, name);
         }
 
         public byte[] getBody() {
@@ -125,8 +132,29 @@ public class WebbyBridge {
 
         public byte[] getBody(int maxLength) {
             BytePointer bytePointer = new BytePointer(maxLength);
-            wby_read(con, bytePointer, maxLength);
-            return bytePointer.getStringBytes();
+            try {
+                wby_read(con, bytePointer, maxLength);
+                return bytePointer.getStringBytes();
+            } finally {
+                bytePointer.deallocate();
+            }
+        }
+
+        public String getParameter(String name) {
+            String queryParams = getQueryParams();
+            BytePointer dst = new BytePointer(queryParams.length());
+            try {
+                int size = wby_find_query_var(queryParams, name, dst, queryParams.length());
+                if (size < 0) {
+                    return null;
+                } else if (size == 0) {
+                    return "";
+                } else {
+                    return new String(dst.getStringBytes(), 0, size);
+                }
+            } finally {
+                dst.deallocate();
+            }
         }
     }
 
@@ -171,6 +199,10 @@ public class WebbyBridge {
     public static native void wby_response_end(Connection con);
 
     public static native int wby_write(Connection con, Pointer memory, int length);
+
+    public static native int wby_find_query_var(String buf, String name, @Cast("char*") BytePointer dst, int dstLength);
+
+    public static native String wby_find_header(Connection connection, String name);
 
     public static class Response {
         protected Connection con;
@@ -238,7 +270,12 @@ public class WebbyBridge {
         }
 
         public int write(byte[] data) {
-            return wby_write(con, new BytePointer(data), data.length);
+            BytePointer bp = new BytePointer(data);
+            try {
+                return wby_write(con, bp, data.length);
+            } finally {
+                bp.deallocate();
+            }
         }
     }
 }

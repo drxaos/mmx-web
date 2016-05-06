@@ -62,6 +62,7 @@ public class Webby {
             @Override
             public int dispatchCallback(WebbyBridge.Request request, WebbyBridge.Connection connection) {
                 if (dispatchHandler != null) {
+                    request.setCon(connection);
                     response.init(connection);
                     try {
                         dispatchHandler.handle(request, response);

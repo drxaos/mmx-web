@@ -141,7 +141,7 @@ public:
     void configure(const char* host, int port, int connection_max, int request_buffer_size, int io_buffer_size) {
         memset(&config, 0, sizeof config);
         config.userdata = this;
-        config.address = (const char*)malloc(strlen(host));
+        config.address = (const char*)malloc(strlen(host)+1);
         strcpy((char*)config.address, (const char*)host);
         config.port = port;
         config.connection_max = connection_max;
@@ -218,9 +218,9 @@ void delete_headers(wby_header* h, int size) {
 }
 
 void set_header(wby_header* header, int index, const char* name, const char* value) {
-    const char* k = (const char*)malloc(strlen(name));
+    const char* k = (const char*)malloc(strlen(name)+1);
     strcpy((char*)k, (const char*)name);
-    const char* v = (const char*)malloc(strlen(value));
+    const char* v = (const char*)malloc(strlen(value)+1);
     strcpy((char*)v, (const char*)value);
     header[index].name = k;
     header[index].value = v;
