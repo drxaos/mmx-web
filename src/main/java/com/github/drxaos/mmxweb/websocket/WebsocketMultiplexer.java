@@ -11,7 +11,7 @@ import java.util.Map;
 public class WebsocketMultiplexer implements WebbyWebsocketHandler {
     List<WebsocketManager> managers = new ArrayList<>();
 
-    Map<WebbyBridge.WsConnection, WebsocketManager> map = new HashMap<>();
+    Map<Long, WebsocketManager> map = new HashMap<>();
 
     public WebsocketMultiplexer manager(WebsocketManager manager) {
         managers.add(manager);
@@ -33,19 +33,19 @@ public class WebsocketMultiplexer implements WebbyWebsocketHandler {
 
     @Override
     public void onConnected(WebbyBridge.WsConnection wsConnection, WebbyBridge.Request request) {
-        map.put(wsConnection, selectedManager);
+        map.put(wsConnection.getUid(), selectedManager);
         selectedManager.onConnected(wsConnection, request);
     }
 
     @Override
     public void onDisconnected(WebbyBridge.WsConnection wsConnection, WebbyBridge.Request request) {
-        WebsocketManager manager = map.remove(wsConnection);
+        WebsocketManager manager = map.remove(wsConnection.getUid());
         manager.onDisconnected(wsConnection, request);
     }
 
     @Override
     public boolean onFrame(WebbyBridge.WsConnection wsConnection, WebbyBridge.Frame frame) {
-        WebsocketManager manager = map.get(wsConnection);
+        WebsocketManager manager = map.get(wsConnection.getUid());
         return manager.onFrame(wsConnection, frame);
     }
 }

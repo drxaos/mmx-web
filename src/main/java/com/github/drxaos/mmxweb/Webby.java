@@ -62,80 +62,105 @@ public class Webby {
     public void start() {
         bridge = new WebbyBridge.Bridge() {
             WebbyBridge.Response response = new WebbyBridge.Response();
+            WebbyBridge.WsConnection wsConnection = new WebbyBridge.WsConnection(this);
 
             @Override
             public int dispatchCallback(WebbyBridge.Request request, WebbyBridge.Connection connection) {
-                if (dispatchHandler != null) {
-                    request.init(connection, false);
-                    response.init(connection);
-                    try {
-                        dispatchHandler.handle(request, response);
-                    } catch (Throwable t) {
-                        log.error("dispatcher error", t);
-                        response.setStatus(500);
-                        response.beginResponse();
-                        response.write(("Server error").getBytes());
-                        response.endResponse();
+                try {
+                    if (dispatchHandler != null) {
+                        request.init(connection, false);
+                        response.init(connection);
+                        try {
+                            dispatchHandler.handle(request, response);
+                        } catch (Throwable t) {
+                            log.error("dispatcher error", t);
+                            response.setStatus(500);
+                            response.beginResponse();
+                            response.write(("Server error").getBytes());
+                            response.endResponse();
+                        }
+                        return response.getRet();
                     }
-                    return response.getRet();
+                } catch (Exception e) {
+                    log.error("dispatch handler error", e);
                 }
                 return super.dispatchCallback(request, connection);
             }
 
             @Override
             public int wsConnectCallback(WebbyBridge.Request request, WebbyBridge.Connection connection) {
-                if (websocketHandler != null) {
-                    request.init(connection, true);
-                    try {
-                        return websocketHandler.connectRequest(connection.getWsConnection(), request) ? 0 : 1;
-                    } catch (Throwable t) {
-                        log.error("ws error", t);
-                        return 1;
+                try {
+                    if (websocketHandler != null) {
+                        request.init(connection, true);
+                        wsConnection.init(connection);
+                        try {
+                            return websocketHandler.connectRequest(wsConnection, request) ? 0 : 1;
+                        } catch (Throwable t) {
+                            log.error("ws error", t);
+                            return 1;
+                        }
                     }
+                } catch (Exception e) {
+                    log.error("websocket handler error", e);
                 }
                 return super.wsConnectCallback(request, connection);
             }
 
             @Override
             public void wsConnectedCallback(WebbyBridge.Request request, WebbyBridge.Connection connection) {
-                if (websocketHandler != null) {
-                    request.init(connection, true);
-                    try {
-                        websocketHandler.onConnected(connection.getWsConnection(), request);
-                        return;
-                    } catch (Throwable t) {
-                        log.error("ws error", t);
-                        return;
+                try {
+                    if (websocketHandler != null) {
+                        request.init(connection, true);
+                        wsConnection.init(connection);
+                        try {
+                            websocketHandler.onConnected(wsConnection, request);
+                            return;
+                        } catch (Throwable t) {
+                            log.error("ws error", t);
+                            return;
+                        }
                     }
+                } catch (Exception e) {
+                    log.error("websocket handler error", e);
                 }
                 super.wsConnectedCallback(request, connection);
             }
 
             @Override
             public void wsDisconnectedCallback(WebbyBridge.Request request, WebbyBridge.Connection connection) {
-                if (websocketHandler != null) {
-                    request.init(connection, true);
-                    try {
-                        websocketHandler.onDisconnected(connection.getWsConnection(), request);
-                        return;
-                    } catch (Throwable t) {
-                        log.error("ws error", t);
-                        return;
+                try {
+                    if (websocketHandler != null) {
+                        request.init(connection, true);
+                        wsConnection.init(connection);
+                        try {
+                            websocketHandler.onDisconnected(wsConnection, request);
+                            return;
+                        } catch (Throwable t) {
+                            log.error("ws error", t);
+                            return;
+                        }
                     }
+                } catch (Exception e) {
+                    log.error("websocket handler error", e);
                 }
                 super.wsDisconnectedCallback(request, connection);
             }
 
             @Override
             public int wsFrameCallback(WebbyBridge.Frame frame, WebbyBridge.Connection connection) {
-                if (websocketHandler != null) {
-                    frame.init(connection.getWsConnection());
-                    try {
-                        return websocketHandler.onFrame(connection.getWsConnection(), frame) ? 0 : 1;
-                    } catch (Throwable t) {
-                        log.error("ws error", t);
-                        return 1;
+                try {
+                    if (websocketHandler != null) {
+                        wsConnection.init(connection);
+                        frame.init(wsConnection);
+                        try {
+                            return websocketHandler.onFrame(wsConnection, frame) ? 0 : 1;
+                        } catch (Throwable t) {
+                            log.error("ws error", t);
+                            return 1;
+                        }
                     }
+                } catch (Exception e) {
+                    log.error("websocket handler error", e);
                 }
                 return super.wsFrameCallback(frame, connection);
             }

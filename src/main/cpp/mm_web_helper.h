@@ -60,6 +60,16 @@ public:
     Bridge() {}
     ~Bridge() {}
 
+    wby_con* findCon(long uid) {
+        for (int i = 0, count = server.con_count; i < count; ++i) {
+            struct wby_connection *conn = &server.con[i];
+            if (uid == (long) conn->socket)
+            {
+                return &conn->public_data;
+            }
+        }
+    }
+
     void configure(const char* host, int port, int connection_max, int request_buffer_size, int io_buffer_size) {
         memset(&config, 0, sizeof config);
         config.userdata = this;
@@ -219,4 +229,8 @@ char* get_error_message() {
 
 long wby_con_uid(wby_con *con) {
     return (int)((struct wby_connection*)con)->socket;
+}
+
+wby_con* wby_uid_con(Bridge *bridge, long uid) {
+    return bridge->findCon(uid);
 }

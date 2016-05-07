@@ -92,24 +92,21 @@ public class WebbyBridge {
 
         private native void allocate();
 
-        WsConnection wsConnection;
+        long uid = -1000;
 
-        public WsConnection getWsConnection() {
-            if (wsConnection == null && wby_con_is_websocket_request(this) == 1) {
-                wsConnection = new WsConnection(this);
-            }
-            return wsConnection;
+        public long getUid() {
+            return uid = wby_con_uid(this);
         }
 
         @Override
         public int hashCode() {
-            return (int) wby_con_uid(this);
+            return (int) getUid();
         }
 
         @Override
         public boolean equals(Object obj) {
             if (obj instanceof Connection) {
-                return wby_con_uid(this) == wby_con_uid((Connection) obj);
+                return getUid() == ((Connection) obj).getUid();
             }
             return false;
         }
@@ -118,9 +115,26 @@ public class WebbyBridge {
     public static class WsConnection {
 
         Connection connection;
+        Bridge bridge;
 
-        public WsConnection(Connection connection) {
+        public WsConnection(Bridge bridge) {
+            this.bridge = bridge;
+        }
+
+        public long getUid() {
+            return connection.getUid();
+        }
+
+        public Connection getConnection() {
+            return connection;
+        }
+
+        public void init(Connection connection) {
             this.connection = connection;
+        }
+
+        public void selectConnection(long uid) {
+            this.connection = wby_uid_con(bridge, uid);
         }
 
         public void sendBinary(byte[] data) {
@@ -158,19 +172,6 @@ public class WebbyBridge {
             if (wby_frame_end(connection) != 0) {
                 throw new WebbyException("Unable to end frame");
             }
-        }
-
-        @Override
-        public int hashCode() {
-            return connection.hashCode();
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (obj instanceof WsConnection) {
-                return this.connection.equals(((WsConnection) obj).connection);
-            }
-            return false;
         }
     }
 
@@ -466,9 +467,9 @@ public class WebbyBridge {
         }
     }
 
-    public static native int wby_con_is_websocket_request(Connection connection);
-
     public static native String get_error_message();
 
     public static native long wby_con_uid(Connection connection);
+
+    public static native Connection wby_uid_con(Bridge bridge, long uid);
 }

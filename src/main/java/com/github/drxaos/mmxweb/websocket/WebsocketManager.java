@@ -3,13 +3,12 @@ package com.github.drxaos.mmxweb.websocket;
 import com.github.drxaos.mmxweb.WebbyWebsocketHandler;
 import com.github.drxaos.mmxweb.javacpp.WebbyBridge;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
 public abstract class WebsocketManager implements WebbyWebsocketHandler {
 
-    protected final Set<WebbyBridge.WsConnection> allConnections = Collections.synchronizedSet(new HashSet<WebbyBridge.WsConnection>());
+    protected List<Long> uids = new ArrayList<>();
     protected WebbyBridge.WsConnection currentConnection;
 
     @Override
@@ -20,14 +19,14 @@ public abstract class WebsocketManager implements WebbyWebsocketHandler {
 
     final public void onConnected(WebbyBridge.WsConnection wsConnection, WebbyBridge.Request request) {
         currentConnection = wsConnection;
-        allConnections.add(wsConnection);
+        uids.add(wsConnection.getUid());
         connected(request);
     }
 
     @Override
     final public void onDisconnected(WebbyBridge.WsConnection wsConnection, WebbyBridge.Request request) {
         currentConnection = wsConnection;
-        allConnections.remove(wsConnection);
+        uids.remove(wsConnection.getUid());
         disconnected(request);
     }
 
@@ -42,7 +41,7 @@ public abstract class WebsocketManager implements WebbyWebsocketHandler {
             case WebbyBridge.Frame.OPCODE_CLOSE:
                 return false;
             case WebbyBridge.Frame.OPCODE_PING:
-                // TODO send pong
+                wsConnection.send(null, WebbyBridge.Frame.OPCODE_PONG);
                 return true;
             case WebbyBridge.Frame.OPCODE_PONG:
                 return true;
@@ -56,6 +55,39 @@ public abstract class WebsocketManager implements WebbyWebsocketHandler {
         return true;
     }
 
+    public void sendBinary(byte[] data) {
+        currentConnection.sendBinary(data);
+    }
+
+    public void sendText(String text) {
+        currentConnection.sendText(text);
+    }
+
+    public void broadcastBinary(byte[] data) {
+        long current = currentConnection.getUid();
+        for (Long uid : uids) {
+            selectConnection(uid);
+            currentConnection.sendBinary(data);
+        }
+        selectConnection(current);
+    }
+
+    public void broadcastText(String text) {
+        long current = currentConnection.getUid();
+        for (Long uid : uids) {
+            selectConnection(uid);
+            currentConnection.sendText(text);
+        }
+        selectConnection(current);
+    }
+
+    public void selectConnection(long uid) {
+        currentConnection.selectConnection(uid);
+    }
+
+    public void disconnect() {
+        currentConnection.close();
+    }
 
     abstract public boolean canConnect(WebbyBridge.Request request);
 

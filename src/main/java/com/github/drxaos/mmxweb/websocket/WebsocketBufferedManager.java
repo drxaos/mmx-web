@@ -19,7 +19,11 @@ abstract public class WebsocketBufferedManager extends WebsocketManager {
         }
 
         if (last && fragment) {
-            return frame(frame.getWsConnection(), buf.toByteArray(), binary);
+            try {
+                return frame(frame.getWsConnection(), buf.toByteArray(), binary);
+            } finally {
+                buf.reset();
+            }
         }
 
         if (last && !fragment) {

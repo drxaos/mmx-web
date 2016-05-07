@@ -48,8 +48,10 @@ public class Main {
                             sum += b;
                         }
                         String str = new String(data);
-                        System.out.println("Data: " + str);
-                        wsConnection.sendText(str + " / SUM: " + sum);
+                        sendText(str + " / SUM: " + sum);
+                        sendText("Testing broadcasts...");
+                        broadcastText("test-test-test-" + sum);
+                        sendText("Testing done");
                         return true;
                     }
                 })
@@ -62,8 +64,8 @@ public class Main {
 
                     @Override
                     public void connected(WebbyBridge.Request request) {
-                        currentConnection.sendText("Current timestamp: " + System.currentTimeMillis());
-                        currentConnection.close();
+                        sendText("Current timestamp: " + System.currentTimeMillis());
+                        disconnect();
                     }
 
                     @Override

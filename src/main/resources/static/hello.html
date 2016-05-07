@@ -11,17 +11,19 @@
 
 <button class="start">Start</button>
 <button class="send">Send</button>
+<button class="time">Time</button>
 
 <div class="msg"></div>
 
 <script>
-    var loc = window.location, ws_uri;
+    var loc = window.location, ws_proto;
     if (loc.protocol === "https:") {
-        ws_uri = "wss:";
+        ws_proto = "wss:";
     } else {
-        ws_uri = "ws:";
+        ws_proto = "ws:";
     }
-    ws_uri += "//" + loc.host + "/ws/echo";
+    var ws_uri = ws_proto + "//" + loc.host + "/ws/echo";
+    var ws_uri_time = ws_proto + "//" + loc.host + "/ws/time";
 
     var ws;
 
@@ -31,6 +33,25 @@
         }
 
         ws = new WebSocket(ws_uri);
+        ws.onopen = function () {
+            $(".msg").append("<p>Connected...</p>");
+        };
+        ws.onclose = function () {
+            $(".msg").append("<p>Disconnected...</p>");
+        };
+        ws.onmessage = function (evt) {
+            $(".msg").append("<p>Data: " + evt.data + "</p>");
+        };
+        ws.onerror = function (ev) {
+            $(".msg").append("<p>Socket error: " + ev.data + "</p>");
+        };
+    });
+    $(".time").click(function () {
+        if (ws) {
+            ws.close();
+        }
+
+        ws = new WebSocket(ws_uri_time);
         ws.onopen = function () {
             $(".msg").append("<p>Connected...</p>");
         };
