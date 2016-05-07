@@ -2,11 +2,52 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>WS Demo</title>
+    <script type="text/javascript" src="/static/jquery.min.js"></script>
 </head>
 <body>
 
 <h1>Hello Browser!</h1>
+
+<button class="start">Start</button>
+<button class="send">Send</button>
+
+<div class="msg"></div>
+
+<script>
+    var loc = window.location, ws_uri;
+    if (loc.protocol === "https:") {
+        ws_uri = "wss:";
+    } else {
+        ws_uri = "ws:";
+    }
+    ws_uri += "//" + loc.host + "/ws/echo";
+
+    var ws;
+
+    $(".start").click(function () {
+        if (ws) {
+            ws.close();
+        }
+
+        ws = new WebSocket(ws_uri);
+        ws.onopen = function () {
+            $(".msg").append("<p>Connected...</p>");
+        };
+        ws.onclose = function () {
+            $(".msg").append("<p>Disconnected...</p>");
+        };
+        ws.onmessage = function (evt) {
+            $(".msg").append("<p>Data: " + evt.data + "</p>");
+        };
+        ws.onerror = function (ev) {
+            $(".msg").append("<p>Socket error: " + ev.data + "</p>");
+        };
+    });
+    $(".send").click(function () {
+        ws.send("Hello! " + new Date());
+    });
+</script>
 
 </body>
 </html>

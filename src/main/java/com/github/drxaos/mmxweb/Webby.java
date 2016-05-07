@@ -24,8 +24,8 @@ public class Webby {
     private int port = 4444;
     private String host = "127.0.0.1";
 
-
     private WebbyDispatchHandler dispatchHandler;
+    private WebbyWebsocketHandler websocketHandler;
 
     public void setMaxConnections(int maxConnections) {
         this.maxConnections = maxConnections;
@@ -51,6 +51,10 @@ public class Webby {
         this.dispatchHandler = dispatchHandler;
     }
 
+    public void setWebsocketHandler(WebbyWebsocketHandler websocketHandler) {
+        this.websocketHandler = websocketHandler;
+    }
+
     public static void log(String text) {
         log.debug(text);
     }
@@ -62,7 +66,7 @@ public class Webby {
             @Override
             public int dispatchCallback(WebbyBridge.Request request, WebbyBridge.Connection connection) {
                 if (dispatchHandler != null) {
-                    request.setCon(connection);
+                    request.init(connection, false);
                     response.init(connection);
                     try {
                         dispatchHandler.handle(request, response);
@@ -80,28 +84,69 @@ public class Webby {
 
             @Override
             public int wsConnectCallback(WebbyBridge.Request request, WebbyBridge.Connection connection) {
+                if (websocketHandler != null) {
+                    request.init(connection, true);
+                    try {
+                        return websocketHandler.connectRequest(connection.getWsConnection(), request) ? 0 : 1;
+                    } catch (Throwable t) {
+                        log.error("ws error", t);
+                        return 1;
+                    }
+                }
                 return super.wsConnectCallback(request, connection);
             }
 
             @Override
             public void wsConnectedCallback(WebbyBridge.Request request, WebbyBridge.Connection connection) {
+                if (websocketHandler != null) {
+                    request.init(connection, true);
+                    try {
+                        websocketHandler.onConnected(connection.getWsConnection(), request);
+                        return;
+                    } catch (Throwable t) {
+                        log.error("ws error", t);
+                        return;
+                    }
+                }
                 super.wsConnectedCallback(request, connection);
             }
 
             @Override
             public void wsDisconnectedCallback(WebbyBridge.Request request, WebbyBridge.Connection connection) {
+                if (websocketHandler != null) {
+                    request.init(connection, true);
+                    try {
+                        websocketHandler.onDisconnected(connection.getWsConnection(), request);
+                        return;
+                    } catch (Throwable t) {
+                        log.error("ws error", t);
+                        return;
+                    }
+                }
                 super.wsDisconnectedCallback(request, connection);
             }
 
             @Override
-            public int wsFrameCallback(WebbyBridge.Request request, WebbyBridge.Frame frame, WebbyBridge.Connection connection) {
-                return super.wsFrameCallback(request, frame, connection);
+            public int wsFrameCallback(WebbyBridge.Frame frame, WebbyBridge.Connection connection) {
+                if (websocketHandler != null) {
+                    frame.init(connection.getWsConnection());
+                    try {
+                        return websocketHandler.onFrame(connection.getWsConnection(), frame) ? 0 : 1;
+                    } catch (Throwable t) {
+                        log.error("ws error", t);
+                        return 1;
+                    }
+                }
+                return super.wsFrameCallback(frame, connection);
             }
         };
         log.debug("Webby configure");
         bridge.configure(host, port, maxConnections, requestBufferSize, ioBufferSize);
         log.debug("Webby start");
-        bridge.start();
+        int err = bridge.start();
+        if (err != 0) {
+            throw new WebbyException(WebbyBridge.get_error_message());
+        }
         log.debug("Webby started");
     }
 

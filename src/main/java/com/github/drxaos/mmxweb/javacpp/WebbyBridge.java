@@ -1,6 +1,7 @@
 package com.github.drxaos.mmxweb.javacpp;
 
 import com.github.drxaos.mmxweb.Webby;
+import com.github.drxaos.mmxweb.WebbyException;
 import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacpp.FunctionPointer;
 import org.bytedeco.javacpp.Loader;
@@ -31,7 +32,11 @@ public class WebbyBridge {
 
         @Name("logCallback")
         public void call(String text) throws Exception {
-            Webby.log(text);
+            if (text.startsWith("failed to switch connection")) {
+                Webby.log(text + ": " + get_error_message());
+            } else {
+                Webby.log(text);
+            }
         }
     }
 
@@ -53,7 +58,7 @@ public class WebbyBridge {
 
         public native void configure(String host, int port, int connection_max, int request_buffer_size, int io_buffer_size);
 
-        public native void start();
+        public native int start();
 
         public native void stop();
 
@@ -72,7 +77,7 @@ public class WebbyBridge {
         public native void wsDisconnectedCallback(Request request, Connection connection);
 
         @Virtual
-        public native int wsFrameCallback(Request request, Frame frame, Connection connection);
+        public native int wsFrameCallback(Frame frame, Connection connection);
     }
 
     @Name("wby_con")
@@ -86,6 +91,87 @@ public class WebbyBridge {
         }
 
         private native void allocate();
+
+        WsConnection wsConnection;
+
+        public WsConnection getWsConnection() {
+            if (wsConnection == null && wby_con_is_websocket_request(this) == 1) {
+                wsConnection = new WsConnection(this);
+            }
+            return wsConnection;
+        }
+
+        @Override
+        public int hashCode() {
+            return (int) wby_con_uid(this);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj instanceof Connection) {
+                return wby_con_uid(this) == wby_con_uid((Connection) obj);
+            }
+            return false;
+        }
+    }
+
+    public static class WsConnection {
+
+        Connection connection;
+
+        public WsConnection(Connection connection) {
+            this.connection = connection;
+        }
+
+        public void sendBinary(byte[] data) {
+            send(data, Frame.OPCODE_BINARY_FRAME);
+        }
+
+        public void sendText(String text) {
+            send(text.getBytes(), Frame.OPCODE_TEXT_FRAME);
+        }
+
+        public void close() {
+            send(null, Frame.OPCODE_CLOSE);
+        }
+
+        public void ping() {
+            send(null, Frame.OPCODE_PING);
+        }
+
+        public void send(byte[] data, int opcode) {
+            if (wby_frame_begin(connection, opcode) != 0) {
+                throw new WebbyException("Unable to start frame");
+            }
+
+            if (data != null) {
+                BytePointer bp = new BytePointer(data);
+                try {
+                    if (wby_write(connection, bp, data.length) != 0) {
+                        throw new WebbyException("Unable to write");
+                    }
+                } finally {
+                    bp.deallocate();
+                }
+            }
+
+            if (wby_frame_end(connection) != 0) {
+                throw new WebbyException("Unable to end frame");
+            }
+        }
+
+        @Override
+        public int hashCode() {
+            return connection.hashCode();
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj instanceof WsConnection) {
+                return this.connection.equals(((WsConnection) obj).connection);
+            }
+            return false;
+        }
     }
 
     @Name("wby_frame")
@@ -94,11 +180,65 @@ public class WebbyBridge {
             Loader.load();
         }
 
+        protected WsConnection wsConnection;
+
+        public void init(WsConnection wsConnection) {
+            this.wsConnection = wsConnection;
+        }
+
         public Frame() {
             allocate();
         }
 
         private native void allocate();
+
+        public static final byte FLAG_FIN = 1;
+        public static final byte FLAG_MASKED = 2;
+
+        public static final byte OPCODE_CONTINUATION = 0;
+        public static final byte OPCODE_TEXT_FRAME = 1;
+        public static final byte OPCODE_BINARY_FRAME = 2;
+        public static final byte OPCODE_CLOSE = 8;
+        public static final byte OPCODE_PING = 9;
+        public static final byte OPCODE_PONG = 10;
+
+        public WsConnection getWsConnection() {
+            return wsConnection;
+        }
+
+        @MemberGetter
+        @Name("flags")
+        public native byte getFlags();
+
+        public boolean isFinal() {
+            return (getFlags() & FLAG_FIN) != 0;
+        }
+
+        public boolean isMasked() {
+            return (getFlags() & FLAG_MASKED) != 0;
+        }
+
+        @MemberGetter
+        @Name("opcode")
+        public native byte getOpcode();
+
+        @MemberGetter
+        @Name("payload_length")
+        public native byte getPayloadLength();
+
+        public byte[] read() {
+            return read(getPayloadLength());
+        }
+
+        public byte[] read(int maxLength) {
+            BytePointer bytePointer = new BytePointer(maxLength);
+            try {
+                wby_read(wsConnection.connection, bytePointer, maxLength);
+                return bytePointer.getStringBytes();
+            } finally {
+                bytePointer.deallocate();
+            }
+        }
     }
 
     @Name("wby_request")
@@ -108,13 +248,15 @@ public class WebbyBridge {
         }
 
         protected Connection con;
+        protected boolean ws;
 
         public Request() {
             allocate();
         }
 
-        public void setCon(Connection con) {
+        public void init(Connection con, boolean ws) {
             this.con = con;
+            this.ws = ws;
         }
 
         private native void allocate();
@@ -156,6 +298,9 @@ public class WebbyBridge {
         }
 
         public byte[] getBody(int maxLength) {
+            if (ws) {
+                throw new WebbyException("Cannot read from ws request, use frame.read() instead");
+            }
             BytePointer bytePointer = new BytePointer(maxLength);
             try {
                 wby_read(con, bytePointer, maxLength);
@@ -225,6 +370,10 @@ public class WebbyBridge {
     public static native int wby_response_begin(Connection con, int status_code, int content_length, @Cast("const wby_header*") Pointer headers, int header_count);
 
     public static native void wby_response_end(Connection con);
+
+    public static native int wby_frame_begin(Connection connection, int opcode);
+
+    public static native int wby_frame_end(Connection connection);
 
     public static native int wby_write(Connection con, Pointer memory, int length);
 
@@ -316,4 +465,10 @@ public class WebbyBridge {
             }
         }
     }
+
+    public static native int wby_con_is_websocket_request(Connection connection);
+
+    public static native String get_error_message();
+
+    public static native long wby_con_uid(Connection connection);
 }

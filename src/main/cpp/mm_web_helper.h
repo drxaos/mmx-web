@@ -77,7 +77,7 @@ public:
         config.ws_closed = websocket_closed;
     }
 
-    void start() {
+    int start() {
         #if defined(_WIN32)
             {WORD wsa_version = MAKEWORD(2,2);
             WSADATA wsa_data;
@@ -89,7 +89,7 @@ public:
 
         wby_init(&server, &config, &needed_memory);
         memory = calloc(needed_memory, 1);
-        wby_start(&server, memory);
+        return wby_start(&server, memory);
     }
 
     void stop() {
@@ -104,9 +104,7 @@ public:
     }
 
     void update() {
-log("upd1");
         wby_update(&server);
-log("upd2");
     }
 
     virtual int dispatchCallback(struct wby_request *request, struct wby_con *con) {
@@ -123,7 +121,7 @@ log("upd2");
     virtual void wsDisconnectedCallback(struct wby_request *request, struct wby_con *con) {
     }
 
-    virtual int wsFrameCallback(struct wby_request *request, const struct wby_frame *frame, struct wby_con *con) {
+    virtual int wsFrameCallback(struct wby_frame *frame, struct wby_con *con) {
         return 1;
     }
 };
@@ -155,7 +153,7 @@ void websocket_closed(struct wby_con *connection, void *userdata)
 int websocket_frame(struct wby_con *connection, const struct wby_frame *frame, void *userdata)
 {
     struct Bridge *bridge = (Bridge*)userdata;
-    return bridge->wsFrameCallback(&connection->request, frame, connection);
+    return bridge->wsFrameCallback((wby_frame*)frame, connection);
 
 //    int i = 0;
 //    printf("WebSocket frame incoming\n");
@@ -215,3 +213,10 @@ void set_header(wby_header* header, int index, const char* name, const char* val
     header[index].value = v;
 }
 
+char* get_error_message() {
+    return strerror(wby_socket_error());
+}
+
+long wby_con_uid(wby_con *con) {
+    return (int)((struct wby_connection*)con)->socket;
+}
