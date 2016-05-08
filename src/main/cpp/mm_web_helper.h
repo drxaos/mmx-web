@@ -7,6 +7,7 @@
 #define WBY_IMPLEMENTATION
 #define WBY_USE_FIXED_TYPES
 #define WBY_USE_ASSERT
+#define WBY_UINT_PTR size_t
 #include "mm_web.h"
 
 #ifdef _WIN32

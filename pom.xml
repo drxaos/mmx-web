@@ -59,18 +59,95 @@
                         <includePath>${project.basedir}/src/main/cpp</includePath>
                     </includePaths>
                     <copyLibs>true</copyLibs>
+                    <classOrPackageNames>
+                        <classOrPackageName>com.github.drxaos.mmxweb.javacpp.*</classOrPackageName>
+                    </classOrPackageNames>
                 </configuration>
                 <executions>
                     <execution>
-                        <id>process-classes</id>
+                        <id>process-classes-l32</id>
                         <phase>process-classes</phase>
                         <goals>
                             <goal>build</goal>
                         </goals>
                         <configuration>
-                            <classOrPackageNames>
-                                <classOrPackageName>com.github.drxaos.mmxweb.javacpp.*</classOrPackageName>
-                            </classOrPackageNames>
+                            <properties>linux-x86</properties>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>process-classes-l64</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                        <configuration>
+                            <properties>linux-x86_64</properties>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>process-classes-w32</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                        <configuration>
+                            <properties>windows-x86-mingw</properties>
+                            <compile>false</compile>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>process-classes-w64</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                        <configuration>
+                            <properties>windows-x86_64-mingw</properties>
+                            <compile>false</compile>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>process-classes-m32</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                        <configuration>
+                            <properties>macosx-x86</properties>
+                            <compile>false</compile>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>process-classes-m64</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                        <configuration>
+                            <properties>macosx-x86_64</properties>
+                            <compile>false</compile>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>process-classes-a32</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                        <configuration>
+                            <properties>android-arm</properties>
+                            <compile>false</compile>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>process-classes-a64</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                        <configuration>
+                            <properties>android-arm64</properties>
+                            <compile>false</compile>
                         </configuration>
                     </execution>
                 </executions>

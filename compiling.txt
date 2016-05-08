@@ -1,0 +1,9 @@
+
+win32
+
+/opt/mingw32/bin/i686-w64-mingw32-g++ -v -I/home/xaos/workspace/mmx-web/src/main/cpp -I/usr/lib/jvm/java-8-oracle/include -I/usr/lib/jvm/java-8-oracle/include/linux /home/xaos/workspace/mmx-web/target/classes/com/github/drxaos/mmxweb/javacpp/jniWebbyBridge.cpp -D_JNI_IMPLEMENTATION_ -Wl,--kill-at -march=i686 -lws2_32 -m32 -Wall -O3 -fPIC -shared -s -o /home/xaos/workspace/mmx-web/target/classes/com/github/drxaos/mmxweb/javacpp/windows-x86/jniWebbyBridge.dll
+
+win64
+
+/opt/mingw64/bin/x86_64-w64-mingw32-g++ -v -I/home/xaos/workspace/mmx-web/src/main/cpp -I/usr/lib/jvm/java-8-oracle/include -I/usr/lib/jvm/java-8-oracle/include/linux /home/xaos/workspace/mmx-web/target/classes/com/github/drxaos/mmxweb/javacpp/jniWebbyBridge.cpp -D_JNI_IMPLEMENTATION_ -Wl,--kill-at -march=x86-64 -lws2_32 -m64 -Wall -O3 -fPIC -shared -s -o /home/xaos/workspace/mmx-web/target/classes/com/github/drxaos/mmxweb/javacpp/windows-x86_64/jniWebbyBridge.dll
+
