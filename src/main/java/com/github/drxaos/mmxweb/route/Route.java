@@ -1,6 +1,7 @@
 package com.github.drxaos.mmxweb.route;
 
 import com.github.drxaos.mmxweb.WebbyDispatchHandler;
+import com.github.drxaos.mmxweb.javacpp.WebbyBridge;
 
 import java.util.Objects;
 
@@ -36,4 +37,14 @@ abstract public class Route implements WebbyDispatchHandler {
         }
     }
 
+    @Override
+    final public void handle(WebbyBridge.Request request, WebbyBridge.Response response) {
+        if (canHandle(request.getUri())) {
+            handleRequest(request, response);
+        } else {
+            response.notFound();
+        }
+    }
+
+    abstract public void handleRequest(WebbyBridge.Request request, WebbyBridge.Response response);
 }

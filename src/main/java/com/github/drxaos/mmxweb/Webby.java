@@ -13,6 +13,7 @@ public class Webby {
     private WebbyBridge.Bridge bridge;
 
     private Thread loop;
+    private boolean started;
 
     private AtomicBoolean quit = new AtomicBoolean(false);
     private AtomicInteger autoUpdateInterval = new AtomicInteger(15);
@@ -22,37 +23,52 @@ public class Webby {
     private int ioBufferSize = 8096;
 
     private int port = 4444;
-    private String host = "127.0.0.1";
+    private String ip = "127.0.0.1";
 
     private WebbyDispatchHandler dispatchHandler;
     private WebbyWebsocketHandler websocketHandler;
 
-    public void setMaxConnections(int maxConnections) {
-        this.maxConnections = maxConnections;
+    public Webby() {
     }
 
-    public void setRequestBufferSize(int requestBufferSize) {
-        this.requestBufferSize = requestBufferSize;
-    }
-
-    public void setIoBufferSize(int ioBufferSize) {
-        this.ioBufferSize = ioBufferSize;
-    }
-
-    public void setPort(int port) {
+    public Webby(String ip, int port) {
         this.port = port;
+        this.ip = ip;
     }
 
-    public void setHost(String host) {
-        this.host = host;
+    public Webby setMaxConnections(int maxConnections) {
+        this.maxConnections = maxConnections;
+        return this;
     }
 
-    public void setDispatchHandler(WebbyDispatchHandler dispatchHandler) {
+    public Webby setRequestBufferSize(int requestBufferSize) {
+        this.requestBufferSize = requestBufferSize;
+        return this;
+    }
+
+    public Webby setIoBufferSize(int ioBufferSize) {
+        this.ioBufferSize = ioBufferSize;
+        return this;
+    }
+
+    public Webby setPort(int port) {
+        this.port = port;
+        return this;
+    }
+
+    public Webby setIp(String ip) {
+        this.ip = ip;
+        return this;
+    }
+
+    public Webby setDispatchHandler(WebbyDispatchHandler dispatchHandler) {
         this.dispatchHandler = dispatchHandler;
+        return this;
     }
 
-    public void setWebsocketHandler(WebbyWebsocketHandler websocketHandler) {
+    public Webby setWebsocketHandler(WebbyWebsocketHandler websocketHandler) {
         this.websocketHandler = websocketHandler;
+        return this;
     }
 
     public static void log(String text) {
@@ -60,6 +76,11 @@ public class Webby {
     }
 
     public void start() {
+        if (started) {
+            throw new WebbyException("Cannot start twice, use another instance");
+        }
+        started = true;
+
         bridge = new WebbyBridge.Bridge() {
             WebbyBridge.Response response = new WebbyBridge.Response();
             WebbyBridge.WsConnection wsConnection = new WebbyBridge.WsConnection(this);
@@ -166,7 +187,7 @@ public class Webby {
             }
         };
         log.debug("Webby configure");
-        bridge.configure(host, port, maxConnections, requestBufferSize, ioBufferSize);
+        bridge.configure(ip, port, maxConnections, requestBufferSize, ioBufferSize);
         log.debug("Webby start");
         int err = bridge.start();
         if (err != 0) {
@@ -176,14 +197,20 @@ public class Webby {
     }
 
     public void update() {
+        if (!started) {
+            start();
+        }
         bridge.update();
     }
 
-    public void startAutoUpdate(final int intervalMs) {
+    public Webby startAutoUpdate(final int intervalMs) {
+        if (!started) {
+            start();
+        }
         quit.set(false);
         autoUpdateInterval.set(intervalMs);
         if (loop == null || !loop.isAlive()) {
-            loop = new Thread("Webby (" + host + ":" + port + ")") {
+            loop = new Thread("Webby (" + ip + ":" + port + ")") {
                 @Override
                 public void run() {
                     log.debug("Webby loop start");
@@ -197,20 +224,34 @@ public class Webby {
             loop.setDaemon(true);
             loop.start();
         }
+        return this;
     }
 
-    public void stopAutoUpdate() {
+    public Webby startAutoUpdateAndJoin(final int intervalMs) {
+        startAutoUpdate(intervalMs);
+        try {
+            loop.join();
+        } catch (InterruptedException ignore) {
+        }
+        return this;
+    }
+
+    public Webby stopAutoUpdate() {
         quit.set(true);
+        return this;
     }
 
-    public void stop() {
+    public Webby stop() {
+        if (!started) {
+            return this;
+        }
         quit.set(true);
         try {
             loop.join(1000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        } catch (InterruptedException ignore) {
         }
         bridge.stop();
         log.debug("Webby stopped");
+        return this;
     }
 }

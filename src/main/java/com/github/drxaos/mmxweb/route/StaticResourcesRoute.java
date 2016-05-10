@@ -52,7 +52,7 @@ public class StaticResourcesRoute extends Route {
     }
 
     @Override
-    public void handle(WebbyBridge.Request request, WebbyBridge.Response response) {
+    public void handleRequest(WebbyBridge.Request request, WebbyBridge.Response response) {
         String uri = request.getUri();
         URL resource = classLoader.getResource((path + uri).replaceFirst("^/+", ""));
         if (resource == null) {

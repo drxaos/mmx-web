@@ -20,7 +20,7 @@ public class RouteDispatcher implements WebbyDispatchHandler {
         String uri = request.getUri();
         for (Route route : routes) {
             if (route.canHandle(uri)) {
-                route.handle(request, response);
+                route.handleRequest(request, response);
                 return;
             }
         }

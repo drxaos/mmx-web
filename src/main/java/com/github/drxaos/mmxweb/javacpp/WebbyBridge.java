@@ -447,6 +447,14 @@ public class WebbyBridge {
             wby_response_end(con);
         }
 
+        public int write(String text) {
+            if (text != null && !text.isEmpty()) {
+                return write(text.getBytes());
+            } else {
+                return 0;
+            }
+        }
+
         public int write(byte[] data) {
             BytePointer bp = new BytePointer(data);
             try {

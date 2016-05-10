@@ -15,7 +15,7 @@ public class Main {
         webby.setDispatchHandler(new RouteDispatcher()
                 .route(new Route("/test") {
                     @Override
-                    public void handle(WebbyBridge.Request request, WebbyBridge.Response response) {
+                    public void handleRequest(WebbyBridge.Request request, WebbyBridge.Response response) {
                         String name = request.getParameter("name");
                         response.addHeader("From", "Robots");
                         response.addHeader("Server", "wobby");
