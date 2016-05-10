@@ -11,6 +11,10 @@ Single header - https://github.com/vurtun/mmx
 
 This library uses native code and may crash your JVM. Do not use in production.
 
+## Maven
+
+https://github.com/drxaos/mvn-repo#mmx-web
+
 ## Example usage
 ```java
 Webby webby = new Webby();
